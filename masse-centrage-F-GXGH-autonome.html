@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Masse et centrage – DR400/120 F-GXGH</title>
+<style>
+:root{--bg:#eef2f5;--card:#fff;--ink:#14213d;--mut:#5c6b7f;--line:#d3dce5;--acc:#0b7285;--env:rgba(11,114,133,.14);--ok:#2b8a3e;--ko:#c92a2a;--inp:#f6f8fa;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1621;--card:#16212f;--ink:#e6edf5;--mut:#90a0b4;--line:#2a3a4d;--acc:#4cc3d9;--env:rgba(76,195,217,.16);--ok:#69db7c;--ko:#ff8787;--inp:#0f1925}}
+:root[data-theme="dark"]{--bg:#0e1621;--card:#16212f;--ink:#e6edf5;--mut:#90a0b4;--line:#2a3a4d;--acc:#4cc3d9;--env:rgba(76,195,217,.16);--ok:#69db7c;--ko:#ff8787;--inp:#0f1925}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums}
+main{max-width:820px;margin:0 auto;padding:20px 14px 48px}
+h1{font-size:24px;margin:4px 0 2px;font-weight:600}
+h2{font-size:17px;margin:0 0 4px;font-weight:600}
+p.s{margin:0 0 12px;color:var(--mut);font-size:13.5px}
+section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin:14px 0}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:480px}
+th{font-size:12.5px;font-weight:500;color:var(--mut);text-align:left;padding:4px 6px}
+td{padding:5px 6px;vertical-align:middle}
+td.c{text-align:right}td.f{color:var(--mut)}
+input[type=number]{width:110px;font:inherit;color:var(--ink);background:var(--inp);border:1px solid var(--line);border-radius:5px;padding:6px 8px;text-align:right}
+input:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+button{font:inherit;cursor:pointer;border-radius:5px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 12px}
+button.p{background:var(--acc);border-color:var(--acc);color:var(--bg)}
+button:disabled{opacity:.5;cursor:default}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.res td,.res th{padding:7px 8px;border-bottom:1px solid var(--line)}
+.ok{color:var(--ok);font-weight:600}.ko{color:var(--ko);font-weight:600}
+.verdict{padding:10px 12px;border-radius:6px;border:1px solid currentColor;margin-bottom:12px;font-weight:600}
+svg{width:100%;height:auto;display:block}
+.ax{stroke:var(--line)}.tx{fill:var(--mut);font-size:11px}
+.tot{font-size:13.5px;color:var(--mut)}.tot b{color:var(--ink)}
+#warn{margin:10px 0 0;padding:8px 12px 8px 28px;border:1px solid var(--ko);border-radius:6px;font-size:13.5px}
+#warn:empty{display:none}
+details{margin-top:10px;font-size:13.5px;color:var(--mut)}summary{cursor:pointer}
+@media print{body{background:#fff}.bar,.noprint{display:none!important}section{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><div><h1>Masse et centrage</h1><p class="s" id="sub"></p></div>
+<div class="bar noprint"><button id="print">Imprimer / PDF</button><button id="reset">Réinitialiser le chargement</button></div></div>
+
+<section>
+<h2>Chargement</h2>
+<p class="s">Saisissez les masses embarquées. Les bras de levier de chaque poste sont fixes.</p>
+<div class="tw"><table><thead><tr><th>Poste</th><th id="hb">Bras</th><th>Quantité</th><th></th><th style="text-align:right" id="hm">Masse</th></tr></thead><tbody id="ts"></tbody></table></div>
+<div class="tot" style="margin-top:10px" id="ewt"></div>
+<details><summary>Données de la fiche utilisées</summary><div id="cfg" style="margin-top:6px"></div></details>
+</section>
+
+<section>
+<h2>Devis de masse et centrage</h2>
+<div id="verdict"></div>
+<div class="tw"><table class="res"><thead id="hr"></thead><tbody id="tr"></tbody></table></div>
+</section>
+
+<section>
+<h2>Graphique du centrage</h2>
+<div id="chart"></div>
+</section>
+<ul id="warn"></ul>
+<p class="s" style="margin-top:12px">L'enveloppe et les masses maximales sont lues sur le graphique de la fiche : vérifiez-les avec le manuel de vol. Ce devis ne le remplace pas.</p>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const U={metric:{m:'kg',a:'m',v:'L',M:'kg·m',d:0.72},imperial:{m:'lb',a:'in',v:'gal US',M:'lb·in',d:6}};
+const DEF={type:'DR400/120',reg:'F-GXGH',date:'24/04/2017',datum:"BDA nervure 7 (bord d'attaque)",units:'metric',density:0.72,mtow:910,mlw:910,burn:30,
+weigh:[{n:'Roue avant',r:178,t:0,a:-0.819},{n:'Roue principale gauche',r:194.5,t:0,a:0.828},{n:'Roue principale droite',r:193,t:0,a:0.828}],
+st:[{n:'Passagers avant (pilote + passager)',a:0.41,k:'m',q:154},{n:'Passagers arrière',a:1.19,k:'m',q:50},{n:'Bagages arrière',a:1.9,k:'m',q:5},{n:'Carburant',a:1.12,k:'f',q:+(80/0.72).toFixed(1)}],
+env:[[0.205,560],[0.205,760],[0.43,910],[0.56,910],[0.56,560]],warnings:[]};
+let AC,Q,burn;
+const f2=x=>(isFinite(x)?x:0).toFixed(2),f3=x=>(isFinite(x)?x:0).toFixed(4);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const inp=(id,v)=>`<input id="${id}" type="number" min="0" step="any" inputmode="decimal" value="${v}">`;
+function empty(){let w=0,m=0;AC.weigh.forEach(p=>{const n=p.r-p.t;w+=n;m+=n*p.a});return{w,m,cg:w?m/w:0}}
+
+function setAC(a){
+ AC=a;Q=a.st.map(s=>s.q);burn=a.burn||0;const u=U[a.units],e=empty();
+ $('#sub').textContent=[a.type,a.reg,a.date&&('pesée du '+a.date)].filter(Boolean).join(', ')+'. Seul le chargement est modifiable.';
+ $('#hb').textContent=`Bras (${u.a})`;$('#hm').textContent=`Masse (${u.m})`;
+ $('#ts').innerHTML=a.st.map((s,i)=>`<tr><td>${esc(s.n)}</td><td class="f">${s.a.toFixed(2)}</td><td>${inp('q'+i,Q[i])}</td><td class="f">${s.k==='f'?u.v:u.m}</td><td class="c" id="w${i}"></td></tr>`).join('')+
+ `<tr><td>Carburant consommé en vol</td><td class="f">–</td><td>${inp('burn',burn)}</td><td class="f">${u.v}</td><td class="c" id="wb"></td></tr>`;
+ $('#ewt').innerHTML=`Masse à vide : <b>${f2(e.w)} ${u.m}</b> — centrage à vide : <b>${f3(e.cg)} ${u.a}</b> — charge utile : <b>${f2(a.mtow-e.w)} ${u.m}</b> (masse maximale ${a.mtow} ${u.m})`;
+ $('#cfg').innerHTML=`<p>Origine des bras : ${esc(a.datum||'non précisée')}. Densité du carburant : ${a.density} ${u.m}/${u.v}.</p><p>Pesée : ${a.weigh.map(p=>`${esc(p.n)} ${p.r}${p.t?' (tare '+p.t+')':''}, bras ${p.a}`).join(' ; ')}.</p><p>Enveloppe (bras ; masse) : ${a.env.map(p=>`(${p[0]} ; ${p[1]})`).join(', ')}.</p>`;
+ $('#warn').innerHTML=(a.warnings||[]).map(w=>`<li>${esc(w)}</li>`).join('');
+ calc();
+}
+function inEnv(x,y){const E=AC.env;let c=false;
+ for(let i=0,j=E.length-1;i<E.length;j=i++){const a=E[i],b=E[j];
+  if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}
+ return c}
+function ticks(a,b,n){const raw=(b-a)/n||1,mag=Math.pow(10,Math.floor(Math.log10(raw)));
+ const st=[1,2,5,10].map(k=>k*mag).find(s=>s>=raw);const o=[];
+ for(let v=Math.ceil(a/st)*st;v<=b+1e-9;v+=st)o.push(parseFloat(v.toFixed(6)));return o}
+
+function calc(){
+ const u=U[AC.units],d=AC.density,e=empty();let nw=0,nm=0,fw=0,fm=0;
+ AC.st.forEach((s,i)=>{const w=s.k==='f'?Q[i]*d:Q[i];$('#w'+i).textContent=f2(w);
+  if(s.k==='f'){fw+=w;fm+=w*s.a}else{nw+=w;nm+=w*s.a}});
+ const bw=Math.min(burn*d,fw),ba=fw?fm/fw:0;$('#wb').textContent='− '+f2(bw);
+ const P=[{n:'Masse à vide',w:e.w,m:e.m},{n:'Sans carburant',w:e.w+nw,m:e.m+nm},{n:'Décollage',w:e.w+nw+fw,m:e.m+nm+fm,lim:AC.mtow},{n:'Atterrissage',w:e.w+nw+fw-bw,m:e.m+nm+fm-bw*ba,lim:AC.mlw}];
+ P.forEach((p,i)=>{p.cg=p.w?p.m/p.w:0;if(i>0){p.env=inEnv(p.cg,p.w);p.over=!!p.lim&&p.w>p.lim}});
+ let ok=true;
+ $('#hr').innerHTML=`<tr><th></th><th>Situation</th><th>Masse (${u.m})</th><th>Moment (${u.M})</th><th>Centrage (${u.a})</th><th>Contrôle</th></tr>`;
+ $('#tr').innerHTML=P.map((p,i)=>{let s='–';
+  if(i>0){const bad=[];if(!p.env)bad.push('hors enveloppe');if(p.over)bad.push('masse maximale dépassée');
+   if(bad.length){ok=false;s=`<span class="ko">${bad.join(', ')}</span>`}else s='<span class="ok">Conforme</span>'}
+  return `<tr><td><b>${i+1}</b></td><td>${p.n}</td><td>${f2(p.w)}</td><td>${f2(p.m)}</td><td>${f3(p.cg)}</td><td>${s}</td></tr>`}).join('');
+ $('#verdict').innerHTML=ok?'<div class="verdict ok">Chargement conforme : masse et centrage dans les limites.</div>':'<div class="verdict ko">Chargement non conforme : voir le détail ci-dessous.</div>';
+ draw(P,u);
+}
+function draw(P,u){
+ const E=AC.env,xs=E.map(p=>p[0]).concat(P.map(p=>p.cg)),ys=E.map(p=>p[1]).concat(P.map(p=>p.w));
+ let x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+ const px=(x1-x0||1)*.1,py=(y1-y0||1)*.1;x0-=px;x1+=px;y0-=py;y1+=py;
+ const W=640,H=420,L=60,R=16,T=14,B=50;
+ const X=v=>L+(v-x0)/(x1-x0)*(W-L-R),Y=v=>H-B-(v-y0)/(y1-y0)*(H-T-B);let g='';
+ ticks(x0,x1,7).forEach(v=>{g+=`<line class="ax" x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${H-B}"/><text class="tx" x="${X(v)}" y="${H-B+16}" text-anchor="middle">${v}</text>`});
+ ticks(y0,y1,6).forEach(v=>{g+=`<line class="ax" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tx" x="${L-8}" y="${Y(v)+4}" text-anchor="end">${v}</text>`});
+ g+=`<polygon points="${E.map(p=>X(p[0])+','+Y(p[1])).join(' ')}" fill="var(--env)" stroke="var(--acc)" stroke-width="2" stroke-linejoin="round"/>`;
+ g+=`<polyline points="${P.slice(1).map(p=>X(p.cg)+','+Y(p.w)).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+ P.forEach((p,i)=>{const bad=i>0&&(!p.env||p.over),col=bad?'var(--ko)':(i===0?'var(--mut)':'var(--acc)');
+  g+=`<circle cx="${X(p.cg)}" cy="${Y(p.w)}" r="10" fill="${col}" stroke="var(--card)" stroke-width="2"/><text x="${X(p.cg)}" y="${Y(p.w)+4}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--card)">${i+1}</text>`});
+ g+=`<text class="tx" x="${(L+W-R)/2}" y="${H-8}" text-anchor="middle" font-size="12">Centrage (${u.a} depuis l'origine)</text><text class="tx" transform="translate(14 ${(T+H-B)/2}) rotate(-90)" text-anchor="middle" font-size="12">Masse (${u.m})</text>`;
+ $('#chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Graphique masse et centrage">${g}</svg><p class="s" style="margin-top:6px">Zone teintée : enveloppe autorisée. Les points sont numérotés comme dans le devis ; la ligne en pointillés relie sans carburant, décollage et atterrissage.</p>`;
+}
+
+document.addEventListener('input',e=>{
+ const t=e.target;if(t.type!=='number')return;
+ const v=t.value===''?0:Math.max(0,+t.value);
+ if(t.id==='burn')burn=v;else Q[+t.id.slice(1)]=v;calc()});
+$('#print').onclick=()=>window.print();
+$('#reset').onclick=()=>{Q=AC.st.map(s=>s.q);burn=AC.burn||0;AC.st.forEach((s,i)=>$('#q'+i).value=Q[i]);$('#burn').value=burn;calc()};
+DEF.warnings=['Enveloppe et masses maximales relevées sur le graphique de la fiche F-GXGH : à vérifier avec le manuel de vol.'];
+setAC(JSON.parse(JSON.stringify(DEF)));
+</script>
+</body>
+</html>
